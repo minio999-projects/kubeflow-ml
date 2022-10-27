@@ -1,0 +1,7 @@
+FROM "ubuntu:bionic"
+RUN apt-get update && yes | apt-get upgrade
+RUN apt-get install -y git python3-pip
+RUN pip3 install --upgrade pip
+RUN pip3 install sklearn
+RUN pip3 install pickle5
+ADD . /app
