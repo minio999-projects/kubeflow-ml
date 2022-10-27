@@ -1,6 +1,6 @@
 import pandas as pd
 
-PATH = 'data/train.csv'
+PATH = './app/train.csv'
 
 def convert_sex(df: pd.DataFrame) -> pd.DataFrame:
     """converting sex columns from 'male' or 'female' into 1 or 0
@@ -33,4 +33,4 @@ df = pd.read_csv(PATH)
 df = convert_sex(df)
 df = impute_age(df)
 
-df.to_csv('data/preprocessed_train.csv', index=False, columns=df.columns)
+df.to_csv('./data/preprocessed_train.csv', index=False, columns=df.columns)
