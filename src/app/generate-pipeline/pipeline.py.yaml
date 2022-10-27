@@ -1,0 +1,75 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: titanic-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.14, pipelines.kubeflow.org/pipeline_compilation_time: '2022-10-27T17:52:30.651328',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "Pipeline to detect if
+      somebody would survived titanic crash", "name": "titanic pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.14}
+spec:
+  entrypoint: titanic-pipeline
+  templates:
+  - name: eval
+    container:
+      command: [python3, eval.py]
+      image: minio999/eval:v1
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  - name: preprocessing
+    container:
+      command: [python3, preprocessing.py]
+      image: minio999/preprocessing:v1.1
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  - name: pvc
+    resource:
+      action: create
+      manifest: |
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: '{{workflow.name}}-pvc'
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    outputs:
+      parameters:
+      - name: pvc-manifest
+        valueFrom: {jsonPath: '{}'}
+      - name: pvc-name
+        valueFrom: {jsonPath: '{.metadata.name}'}
+      - name: pvc-size
+        valueFrom: {jsonPath: '{.status.capacity.storage}'}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  - name: titanic-pipeline
+    dag:
+      tasks:
+      - {name: eval, template: eval}
+      - {name: preprocessing, template: preprocessing}
+      - {name: pvc, template: pvc}
+      - {name: train, template: train}
+  - name: train
+    container:
+      command: [python3, train.py]
+      image: minio999/train:v1
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
