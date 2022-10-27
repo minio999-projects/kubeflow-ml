@@ -12,9 +12,9 @@ def step1():
         name = 'preprocessing',
         image = 'minio999/preprocessing:v1.1',
         command = ['python3', 'preprocessing.py'],
-        pvolumes={
-            '/app': vop.volume
-        }
+        # pvolumes={
+        #     '/app': vop.volume
+        # }
     )
 
 def step2(step1):
@@ -22,9 +22,9 @@ def step2(step1):
         name = 'Train',
         image = 'minio999/train:v1',
         command = ['python3', 'train.py'],
-        pvolumes = {
-            '/app': vop.volume
-        },
+        # pvolumes = {
+        #     '/app': vop.volume
+        # },
     )
 
 def step3(step2):
@@ -32,18 +32,18 @@ def step3(step2):
         name = 'Eval',
         image = 'minio999/eval:v1',
         command = ['python3', 'eval.py'],
-        pvolumes = {
-            '/app': vop.volume
-        }
+        # pvolumes = {
+        #     '/app': vop.volume
+        # }
     )
 
 @dsl.pipeline(
     name = 'titanic pipeline',
     description = 'Pipeline to detect if somebody would survived titanic crash')
 def pipeline():
-    step1 = step1()
-    step2 = step2(step1)
-    step3 = step3(step3)
+    preprocessing = step1()
+    train = step2(preprocessing)
+    eval = step3(train)
 
 if __name__ == '__main__':
   import kfp.compiler as compiler
