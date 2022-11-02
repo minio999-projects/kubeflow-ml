@@ -6,9 +6,3 @@ kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/env/platform
 
 # connection via http://localhost:8080/
 kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80
-
-# connecting to docker first login via docker hub
-docker login
-
-# building docker images
-docker build -t <docker_username>/<docker_imagename>:<tag> .
