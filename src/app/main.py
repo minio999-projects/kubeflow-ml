@@ -4,14 +4,14 @@ from kfp import components
 from kfp.v2 import compiler, dsl
 from kfp.v2.dsl import component, Input, Output, InputPath, Dataset, Model
 
-@component(packages_to_install=['sklearn'], name='Load Data')
+@component(packages_to_install=['sklearn'])
 def load_data() -> Dataset:
     from sklearn.datasets import load_wine
     
     data = load_wine()
     return data
 
-@component(packages_to_install=['sklearn', 'pandas', 'numpy'], name='Model Selection')
+@component(packages_to_install=['sklearn', 'pandas', 'numpy'])
 def model_selection(data) -> list:
     import pandas as pd
     import numpy as np
@@ -73,8 +73,7 @@ def model_selection(data) -> list:
 
 @dsl.pipeline(name='test')
 def pipeline():
-    data = load_data()
-    model_selection()
+    model_selection(load_data().output)
 
 if __name__ == '__main__':
     kfp.compiler.Compiler(mode=kfp.dsl.PipelineExecutionMode.V2_COMPATIBLE).compile(
