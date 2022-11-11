@@ -4,7 +4,7 @@ metadata:
   generateName: test-
   annotations:
     pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
-    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-03T22:53:15.652268'
+    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-11T11:32:46.981675'
     pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "", "name": "pipeline-root"},
       {"default": "pipeline/test", "name": "pipeline-name"}], "name": "test"}'
     pipelines.kubeflow.org/v2_pipeline: "true"

@@ -6,3 +6,12 @@ kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/env/platform
 
 # connection via http://localhost:8080/
 kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80
+
+# setuping seldon core
+kubectl create namespace seldon-system
+
+helm install seldon-core seldon-core-operator \
+    --repo https://storage.googleapis.com/seldon-charts \
+    --set usageMetrics.enabled=true \
+    --set istio.enabled=true \
+    --namespace seldon-system

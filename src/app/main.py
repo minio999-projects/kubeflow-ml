@@ -2,17 +2,20 @@ from pyexpat import model
 import kfp
 from kfp import components
 from kfp.v2 import compiler, dsl
-from kfp.v2.dsl import component, Input, Output, InputPath, Dataset, Model
+from kfp.v2.dsl import component, Input, Output, InputPath, OutputPath
 
-@component(packages_to_install=['sklearn'])
-def load_data() -> Dataset:
+@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
+def load_data(output_file: OutputPath('parquet')):
     from sklearn.datasets import load_wine
+    import pandas as pd
+    import numpy as np
     
     data = load_wine()
-    return data
+    data=pd.DataFrame(data=np.c_[data['data'],data['target']],columns=data['feature_names']+['target'])
+    data.to_parquet(output_file)
 
-@component(packages_to_install=['sklearn', 'pandas', 'numpy'])
-def model_selection(data) -> list:
+@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
+def model_selection(file_path: InputPath('parquet')):
     import pandas as pd
     import numpy as np
     from sklearn.model_selection import KFold
@@ -22,8 +25,12 @@ def model_selection(data) -> list:
     from sklearn.ensemble import BaggingClassifier, ExtraTreesClassifier, RandomForestClassifier
     from sklearn.metrics import accuracy_score
 
-    X = data.data
-    y = data.target
+    data = pd.read_parquet(file_path)
+    features = ['alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'magnesium', 'total_phenols', 'flavanoids',
+                'nonflavanoid_phenols', 'proanthocyanins', 'color_intensity', 'hue', 'od280/od315_of_diluted_wines',
+                'proline']
+    X = data[features]
+    y = data['target']
 
     models = [
         SVC(), NuSVC(), LinearSVC(),
@@ -39,9 +46,10 @@ def model_selection(data) -> list:
     )
     
     scores = []
-    best_model = ['dummy', 0]
     
     for model in models:
+        print(model)
+        scores=[]
         for train_index, test_index in kf.split(X):
             X_train, X_test = X.loc[train_index], X.loc[test_index]
             y_train, y_test = y.loc[train_index], y.loc[test_index]
@@ -56,24 +64,88 @@ def model_selection(data) -> list:
             print(acc_score)
 
             scores.append(acc_score)
-            
-            average = 100*np.mean(scores) 
-            std = 100*np.std(scores)
-            if std < 3 and average > best_model[1]:
-                best_model.clear()
-                best_model.append(str(model))
-                best_model.append(average)
-                best_model.append(std)
 
         print()
-        print(model)
-        print("Average:", round(100*np.mean(scores), 1), "%")
-        print("Std:", round(100*np.std(scores), 1), "%")
-    return best_model
+        print("Average:", round(100*np.mean(scores), 3), "%")
+        print("Std:", round(100*np.std(scores), 3), "%")
+        print()
+
+@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
+def hyperparameter_tuning(file_path: InputPath('parquet')):
+    import pandas as pd
+    import numpy as np
+    from sklearn.model_selection import GridSearchCV, train_test_split
+    from sklearn.ensemble import RandomForestClassifier
+
+    data = pd.read_parquet(file_path)
+    features = ['alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'magnesium', 'total_phenols', 'flavanoids',
+                'nonflavanoid_phenols', 'proanthocyanins', 'color_intensity', 'hue', 'od280/od315_of_diluted_wines',
+                'proline']
+    X = data[features]
+    y = data['target']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    clf = RandomForestClassifier()
+
+    grid_values = {
+        'n_estimators': [10, 100, 1000],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 5]
+    }
+
+    grid = GridSearchCV(estimator = clf, param_grid = grid_values, scoring = 'accuracy',
+                        cv = 3, refit = True, return_train_score = True)
+    grid.fit(X_train, y_train)
+    print(grid.best_estimator_)
+    print(grid.best_score_)
+    print(grid.best_params_)
+
+@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
+def train(file_path: InputPath('parquet')):
+    import pandas as pd
+    import numpy as np
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import KFold
+    from sklearn.metrics import accuracy_score
+
+    data = pd.read_parquet(file_path)
+    features = ['alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'magnesium', 'total_phenols', 'flavanoids',
+                'nonflavanoid_phenols', 'proanthocyanins', 'color_intensity', 'hue', 'od280/od315_of_diluted_wines',
+                'proline']
+    X = data[features]
+    y = data['target']
+
+    kf = KFold(
+        n_splits=3,
+        shuffle=True,
+        random_state=42
+    )
+
+    scores = []
+
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X.loc[train_index], X.loc[test_index]
+        y_train, y_test = y.loc[train_index], y.loc[test_index]
+
+        clf = RandomForestClassifier(n_estimators=1000)
+
+        clf.fit(X_train, y_train)
+        y_predict = clf.predict(X_test)
+
+        acc_score = round(accuracy_score(y_test, y_predict),3)
+
+        print(acc_score)
+
+        scores.append(acc_score)
+
+    print("Average:", round(100*np.mean(scores), 3), "%")
+    print("Std:", round(100*np.std(scores), 3), "%")
 
 @dsl.pipeline(name='test')
 def pipeline():
-    model_selection(load_data().output)
+    data = load_data()
+    model_selection(data.output)
+    hyperparameter_tuning(data.output)
+    train(data.output)
 
 if __name__ == '__main__':
     kfp.compiler.Compiler(mode=kfp.dsl.PipelineExecutionMode.V2_COMPATIBLE).compile(
