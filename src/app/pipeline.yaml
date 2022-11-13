@@ -4,7 +4,7 @@ metadata:
   generateName: test-2-
   annotations:
     pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
-    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-13T18:08:48.122876'
+    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-13T18:12:45.276872'
     pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "", "name": "pipeline-root"},
       {"default": "pipeline/test", "name": "pipeline-name"}], "name": "test"}'
     pipelines.kubeflow.org/v2_pipeline: "true"
@@ -395,7 +395,7 @@ spec:
         from typing import *
 
         def test(clf: Input[Model]):
-            print(clf['uri'])
+            print(clf.uri)
 
       - --executor_input
       - '{{$}}'
