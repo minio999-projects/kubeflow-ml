@@ -1,14 +1,15 @@
-from pyexpat import model
 import kfp
 from kfp import components
 from kfp.v2 import compiler, dsl
-from kfp.v2.dsl import component, Input, Output, InputPath, OutputPath
+from kfp.v2.dsl import Input, InputPath, Model, Output, OutputPath, component
+from pyexpat import model
+
 
 @component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
 def load_data(output_file: OutputPath('parquet')):
-    from sklearn.datasets import load_wine
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+    from sklearn.datasets import load_wine
     
     data = load_wine()
     data=pd.DataFrame(data=np.c_[data['data'],data['target']],columns=data['feature_names']+['target'])
@@ -16,14 +17,15 @@ def load_data(output_file: OutputPath('parquet')):
 
 @component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
 def model_selection(file_path: InputPath('parquet')):
-    import pandas as pd
     import numpy as np
-    from sklearn.model_selection import KFold
-    from sklearn.svm import LinearSVC, NuSVC, SVC
-    from sklearn.neighbors import KNeighborsClassifier
+    import pandas as pd
+    from sklearn.ensemble import (BaggingClassifier, ExtraTreesClassifier,
+                                  RandomForestClassifier)
     from sklearn.linear_model import LogisticRegression, SGDClassifier
-    from sklearn.ensemble import BaggingClassifier, ExtraTreesClassifier, RandomForestClassifier
     from sklearn.metrics import accuracy_score
+    from sklearn.model_selection import KFold
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.svm import SVC, LinearSVC, NuSVC
 
     data = pd.read_parquet(file_path)
     features = ['alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'magnesium', 'total_phenols', 'flavanoids',
@@ -72,10 +74,10 @@ def model_selection(file_path: InputPath('parquet')):
 
 @component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
 def hyperparameter_tuning(file_path: InputPath('parquet')):
-    import pandas as pd
     import numpy as np
-    from sklearn.model_selection import GridSearchCV, train_test_split
+    import pandas as pd
     from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import GridSearchCV, train_test_split
 
     data = pd.read_parquet(file_path)
     features = ['alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'magnesium', 'total_phenols', 'flavanoids',
@@ -99,13 +101,13 @@ def hyperparameter_tuning(file_path: InputPath('parquet')):
     print(grid.best_score_)
     print(grid.best_params_)
 
-@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
-def train(file_path: InputPath('parquet')):
-    import pandas as pd
+@component(packages_to_install=['pandas', 'numpy', 'pyarrow', 'sklearn', 'scikit-learn'])
+def train(file_path: InputPath('parquet'), clf: Output[Model]):
     import numpy as np
+    import pandas as pd
     from sklearn.ensemble import RandomForestClassifier
-    from sklearn.model_selection import KFold
     from sklearn.metrics import accuracy_score
+    from sklearn.model_selection import KFold
 
     data = pd.read_parquet(file_path)
     features = ['alcohol', 'malic_acid', 'ash', 'alcalinity_of_ash', 'magnesium', 'total_phenols', 'flavanoids',
@@ -140,13 +142,16 @@ def train(file_path: InputPath('parquet')):
     print("Average:", round(100*np.mean(scores), 3), "%")
     print("Std:", round(100*np.std(scores), 3), "%")
 
+@dsl.component
+def test(clf: Input[Model]):
+    print(clf)
 @dsl.pipeline(name='test')
 def pipeline():
     data = load_data()
     model_selection(data.output)
     hyperparameter_tuning(data.output)
-    train(data.output)
-
+    step = train(data.output)
+    test(step.output)
 if __name__ == '__main__':
     kfp.compiler.Compiler(mode=kfp.dsl.PipelineExecutionMode.V2_COMPATIBLE).compile(
     pipeline_func=pipeline,
