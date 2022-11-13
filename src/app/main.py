@@ -144,7 +144,7 @@ def train(file_path: InputPath('parquet'), clf: Output[Model]):
 
 @dsl.component
 def test(clf: Input[Model]):
-    print(clf)
+    print(clf['uri'])
 @dsl.pipeline(name='test')
 def pipeline():
     data = load_data()
