@@ -4,7 +4,7 @@ metadata:
   generateName: test-2-
   annotations:
     pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
-    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-13T00:00:37.544070'
+    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-13T17:50:09.250008'
     pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "", "name": "pipeline-root"},
       {"default": "pipeline/test", "name": "pipeline-name"}], "name": "test"}'
     pipelines.kubeflow.org/v2_pipeline: "true"
@@ -25,7 +25,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.14' && "$0" "$@"
       - sh
       - -ec
       - |
@@ -140,7 +140,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.14' && "$0" "$@"
       - sh
       - -ec
       - |
@@ -237,7 +237,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.14' && "$0" "$@"
       - sh
       - -ec
       - |

@@ -5,7 +5,7 @@ from kfp.v2.dsl import Input, InputPath, Model, Output, OutputPath, component
 from pyexpat import model
 
 
-@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
+@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet', 'scikit-learn'])
 def load_data(output_file: OutputPath('parquet')):
     import numpy as np
     import pandas as pd
@@ -15,7 +15,7 @@ def load_data(output_file: OutputPath('parquet')):
     data=pd.DataFrame(data=np.c_[data['data'],data['target']],columns=data['feature_names']+['target'])
     data.to_parquet(output_file)
 
-@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
+@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet', 'scikit-learn'])
 def model_selection(file_path: InputPath('parquet')):
     import numpy as np
     import pandas as pd
@@ -72,7 +72,7 @@ def model_selection(file_path: InputPath('parquet')):
         print("Std:", round(100*np.std(scores), 3), "%")
         print()
 
-@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet'])
+@component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet', 'scikit-learn'])
 def hyperparameter_tuning(file_path: InputPath('parquet')):
     import numpy as np
     import pandas as pd
