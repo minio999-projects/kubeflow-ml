@@ -3,7 +3,10 @@ from kfp import components
 from kfp.v2 import compiler, dsl
 from kfp.v2.dsl import Input, InputPath, Model, Output, OutputPath, component
 from pyexpat import model
+import os
+from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent
 
 @component(packages_to_install=['sklearn', 'pandas', 'numpy', 'pyarrow', 'fastparquet', 'scikit-learn'])
 def load_data(output_file: OutputPath('parquet')):
@@ -142,17 +145,26 @@ def train(file_path: InputPath('parquet'), clf: Output[Model]):
     print("Average:", round(100*np.mean(scores), 3), "%")
     print("Std:", round(100*np.std(scores), 3), "%")
 
-@dsl.component
-def test(clf: Input[Model]):
-    print(clf.uri)
-@dsl.pipeline(name='test')
+@component(packages_to_install=['Jinja2'])
+def pass_uri(clf: Input[Model]) -> str:
+    model_uri = clf.uri
+    return model_uri
+
+deploy_op = kfp.components.load_component_from_file(
+    os.path.join(PROJECT_ROOT, 'components', 'deploy', 'component.yaml'))
+
+
+@dsl.pipeline(name='kubeflow-seldon')
 def pipeline():
     data = load_data()
     model_selection(data.output)
     hyperparameter_tuning(data.output)
-    step = train(data.output)
-    test(step.output)
+    train_task = train(data.output)
+    uri = pass_uri(train_task.output)
+    deploy_task = deploy_op(model_uri=uri.output)
+
 if __name__ == '__main__':
     kfp.compiler.Compiler(mode=kfp.dsl.PipelineExecutionMode.V2_COMPATIBLE).compile(
-    pipeline_func=pipeline,
-    package_path='pipeline.yaml')
+        pipeline_func=pipeline,
+        package_path='pipeline.yaml'
+    )
