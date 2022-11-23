@@ -1,8 +1,11 @@
 import argparse
 import subprocess
 from jinja2 import Environment, FileSystemLoader
+from kfp import InputPath
 
-def deploy(model_uri: str):
+def deploy(model_path: InputPath('joblib')):
+    model_uri = ''
+    model_uri.join(model_path)
     with open("/tmp/manifest.yaml", "w") as f:
         env = Environment(loader=FileSystemLoader('./templates'),
                           trim_blocks=True, lstrip_blocks=True)

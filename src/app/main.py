@@ -104,10 +104,11 @@ def hyperparameter_tuning(file_path: InputPath('parquet')):
     print(grid.best_score_)
     print(grid.best_params_)
 
-@component(packages_to_install=['pandas', 'numpy', 'pyarrow', 'sklearn', 'scikit-learn'])
-def train(file_path: InputPath('parquet'), clf: Output[Model]):
+@component(packages_to_install=['pandas', 'numpy', 'pyarrow', 'sklearn', 'scikit-learn', 'joblib'])
+def train(file_path: InputPath('parquet'), model_path: OutputPath('joblib')):
     import numpy as np
     import pandas as pd
+    from joblib import dump
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.metrics import accuracy_score
     from sklearn.model_selection import KFold
@@ -145,10 +146,8 @@ def train(file_path: InputPath('parquet'), clf: Output[Model]):
     print("Average:", round(100*np.mean(scores), 3), "%")
     print("Std:", round(100*np.std(scores), 3), "%")
 
-@component(packages_to_install=['Jinja2'])
-def pass_uri(clf: Input[Model]) -> str:
-    model_uri = clf.uri
-    return model_uri
+    model_path = dump(clf, 'model.joblib')
+
 
 deploy_op = kfp.components.load_component_from_file(
     os.path.join(PROJECT_ROOT, 'components', 'deploy', 'component.yaml'))
@@ -160,8 +159,7 @@ def pipeline():
     model_selection(data.output)
     hyperparameter_tuning(data.output)
     train_task = train(data.output)
-    uri = pass_uri(train_task.output)
-    deploy_task = deploy_op(model_uri=uri.output)
+    deploy_task = deploy_op(model_uri=train_task.output)
 
 if __name__ == '__main__':
     kfp.compiler.Compiler(mode=kfp.dsl.PipelineExecutionMode.V2_COMPATIBLE).compile(
