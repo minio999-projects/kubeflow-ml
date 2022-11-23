@@ -1,19 +1,81 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: test-2-
+  generateName: kubeflow-seldon-
   annotations:
-    pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
-    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-13T18:12:45.276872'
+    pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
+    pipelines.kubeflow.org/pipeline_compilation_time: '2022-11-21T21:31:44.519235'
     pipelines.kubeflow.org/pipeline_spec: '{"inputs": [{"default": "", "name": "pipeline-root"},
-      {"default": "pipeline/test", "name": "pipeline-name"}], "name": "test"}'
+      {"default": "pipeline/kubeflow-seldon", "name": "pipeline-name"}], "name": "kubeflow-seldon"}'
     pipelines.kubeflow.org/v2_pipeline: "true"
   labels:
     pipelines.kubeflow.org/v2_pipeline: "true"
-    pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+    pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
 spec:
-  entrypoint: test-2
+  entrypoint: kubeflow-seldon
   templates:
+  - name: deploy-model
+    container:
+      args: [python3, src/deploy.py, --model_uri, '{{$.inputs.parameters[''model_uri'']}}']
+      command: [/kfp-launcher/launch, --mlmd_server_address, $(METADATA_GRPC_SERVICE_HOST),
+        --mlmd_server_port, $(METADATA_GRPC_SERVICE_PORT), --runtime_info_json, $(KFP_V2_RUNTIME_INFO),
+        --container_image, $(KFP_V2_IMAGE), --task_name, deploy-model, --pipeline_name,
+        '{{inputs.parameters.pipeline-name}}', --run_id, $(KFP_RUN_ID), --run_resource,
+        workflows.argoproj.io/$(WORKFLOW_ID), --namespace, $(KFP_NAMESPACE), --pod_name,
+        $(KFP_POD_NAME), --pod_uid, $(KFP_POD_UID), --pipeline_root, '{{inputs.parameters.pipeline-root}}',
+        --enable_caching, $(ENABLE_CACHING), --, 'model_uri={{inputs.parameters.pass-uri-Output}}',
+        --]
+      env:
+      - name: KFP_POD_NAME
+        valueFrom:
+          fieldRef: {fieldPath: metadata.name}
+      - name: KFP_POD_UID
+        valueFrom:
+          fieldRef: {fieldPath: metadata.uid}
+      - name: KFP_NAMESPACE
+        valueFrom:
+          fieldRef: {fieldPath: metadata.namespace}
+      - name: WORKFLOW_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''workflows.argoproj.io/workflow'']'}
+      - name: KFP_RUN_ID
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipeline/runid'']'}
+      - name: ENABLE_CACHING
+        valueFrom:
+          fieldRef: {fieldPath: 'metadata.labels[''pipelines.kubeflow.org/enable_caching'']'}
+      - {name: KFP_V2_IMAGE, value: 'minio999/kubeflow-seldon@sha256:dc241b71182232d4deb35773e5f28c81436b0b4705a3f808112e82aae6316d4d'}
+      - {name: KFP_V2_RUNTIME_INFO, value: '{"inputParameters": {"model_uri": {"type":
+          "STRING"}}, "inputArtifacts": {}, "outputParameters": {}, "outputArtifacts":
+          {}}'}
+      envFrom:
+      - configMapRef: {name: metadata-grpc-configmap, optional: true}
+      image: minio999/kubeflow-seldon@sha256:dc241b71182232d4deb35773e5f28c81436b0b4705a3f808112e82aae6316d4d
+      volumeMounts:
+      - {mountPath: /kfp-launcher, name: kfp-launcher}
+    inputs:
+      parameters:
+      - {name: pass-uri-Output}
+      - {name: pipeline-name}
+      - {name: pipeline-root}
+    metadata:
+      annotations:
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/component_ref: '{"digest": "03dce27a8a6e6a3f415b11b05fedf72b589b61468952805427dde302de3ad5f2",
+          "url": "D:\\Programowanie\\repos\\github\\minio999-projects\\kubeflow-ml\\components\\deploy\\component.yaml"}'
+        pipelines.kubeflow.org/arguments.parameters: '{"model_uri": "{{inputs.parameters.pass-uri-Output}}"}'
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/v2_component: "true"
+        pipelines.kubeflow.org/enable_caching: "true"
+    initContainers:
+    - command: [launcher, --copy, /kfp-launcher/launch]
+      image: gcr.io/ml-pipeline/kfp-launcher:1.8.7
+      name: kfp-launcher
+      mirrorVolumeMounts: true
+    volumes:
+    - {name: kfp-launcher}
   - name: hyperparameter-tuning
     container:
       args:
@@ -25,7 +87,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.16' && "$0" "$@"
       - sh
       - -ec
       - |
@@ -118,7 +180,7 @@ spec:
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/component_ref: '{}'
       labels:
-        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
         pipelines.kubeflow.org/pipeline-sdk-type: kfp
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/enable_caching: "true"
@@ -129,6 +191,63 @@ spec:
       mirrorVolumeMounts: true
     volumes:
     - {name: kfp-launcher}
+  - name: kubeflow-seldon
+    inputs:
+      parameters:
+      - {name: pipeline-name}
+      - {name: pipeline-root}
+    dag:
+      tasks:
+      - name: deploy-model
+        template: deploy-model
+        dependencies: [pass-uri]
+        arguments:
+          parameters:
+          - {name: pass-uri-Output, value: '{{tasks.pass-uri.outputs.parameters.pass-uri-Output}}'}
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+      - name: hyperparameter-tuning
+        template: hyperparameter-tuning
+        dependencies: [load-data]
+        arguments:
+          parameters:
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+          artifacts:
+          - {name: load-data-output_file, from: '{{tasks.load-data.outputs.artifacts.load-data-output_file}}'}
+      - name: load-data
+        template: load-data
+        arguments:
+          parameters:
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+      - name: model-selection
+        template: model-selection
+        dependencies: [load-data]
+        arguments:
+          parameters:
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+          artifacts:
+          - {name: load-data-output_file, from: '{{tasks.load-data.outputs.artifacts.load-data-output_file}}'}
+      - name: pass-uri
+        template: pass-uri
+        dependencies: [train]
+        arguments:
+          parameters:
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+          artifacts:
+          - {name: train-clf, from: '{{tasks.train.outputs.artifacts.train-clf}}'}
+      - name: train
+        template: train
+        dependencies: [load-data]
+        arguments:
+          parameters:
+          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
+          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
+          artifacts:
+          - {name: load-data-output_file, from: '{{tasks.load-data.outputs.artifacts.load-data-output_file}}'}
   - name: load-data
     container:
       args:
@@ -140,7 +259,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.16' && "$0" "$@"
       - sh
       - -ec
       - |
@@ -215,7 +334,7 @@ spec:
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/component_ref: '{}'
       labels:
-        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
         pipelines.kubeflow.org/pipeline-sdk-type: kfp
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/enable_caching: "true"
@@ -237,7 +356,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'sklearn' 'pandas' 'numpy' 'pyarrow' 'fastparquet' 'scikit-learn' 'kfp==1.8.16' && "$0" "$@"
       - sh
       - -ec
       - |
@@ -358,7 +477,7 @@ spec:
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/component_ref: '{}'
       labels:
-        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
         pipelines.kubeflow.org/pipeline-sdk-type: kfp
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/enable_caching: "true"
@@ -369,7 +488,7 @@ spec:
       mirrorVolumeMounts: true
     volumes:
     - {name: kfp-launcher}
-  - name: test
+  - name: pass-uri
     container:
       args:
       - sh
@@ -380,7 +499,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'Jinja2' 'kfp==1.8.16' && "$0" "$@"
       - sh
       - -ec
       - |
@@ -394,20 +513,21 @@ spec:
         from kfp.v2.dsl import *
         from typing import *
 
-        def test(clf: Input[Model]):
-            print(clf.uri)
+        def pass_uri(clf: Input[Model]) -> str:
+            model_uri = clf.uri
+            return model_uri
 
       - --executor_input
       - '{{$}}'
       - --function_to_execute
-      - test
+      - pass_uri
       command: [/kfp-launcher/launch, --mlmd_server_address, $(METADATA_GRPC_SERVICE_HOST),
         --mlmd_server_port, $(METADATA_GRPC_SERVICE_PORT), --runtime_info_json, $(KFP_V2_RUNTIME_INFO),
-        --container_image, $(KFP_V2_IMAGE), --task_name, test, --pipeline_name, '{{inputs.parameters.pipeline-name}}',
-        --run_id, $(KFP_RUN_ID), --run_resource, workflows.argoproj.io/$(WORKFLOW_ID),
-        --namespace, $(KFP_NAMESPACE), --pod_name, $(KFP_POD_NAME), --pod_uid, $(KFP_POD_UID),
-        --pipeline_root, '{{inputs.parameters.pipeline-root}}', --enable_caching,
-        $(ENABLE_CACHING), --, --]
+        --container_image, $(KFP_V2_IMAGE), --task_name, pass-uri, --pipeline_name,
+        '{{inputs.parameters.pipeline-name}}', --run_id, $(KFP_RUN_ID), --run_resource,
+        workflows.argoproj.io/$(WORKFLOW_ID), --namespace, $(KFP_NAMESPACE), --pod_name,
+        $(KFP_POD_NAME), --pod_uid, $(KFP_POD_UID), --pipeline_root, '{{inputs.parameters.pipeline-root}}',
+        --enable_caching, $(ENABLE_CACHING), --, --]
       env:
       - name: KFP_POD_NAME
         valueFrom:
@@ -430,8 +550,9 @@ spec:
       - {name: KFP_V2_IMAGE, value: 'python:3.7'}
       - {name: KFP_V2_RUNTIME_INFO, value: '{"inputParameters": {}, "inputArtifacts":
           {"clf": {"metadataPath": "/tmp/inputs/clf/data", "schemaTitle": "system.Model",
-          "instanceSchema": "", "schemaVersion": "0.0.1"}}, "outputParameters": {},
-          "outputArtifacts": {}}'}
+          "instanceSchema": "", "schemaVersion": "0.0.1"}}, "outputParameters": {"Output":
+          {"type": "STRING", "path": "/tmp/outputs/Output/data"}}, "outputArtifacts":
+          {}}'}
       envFrom:
       - configMapRef: {name: metadata-grpc-configmap, optional: true}
       image: python:3.7
@@ -443,12 +564,18 @@ spec:
       - {name: pipeline-root}
       artifacts:
       - {name: train-clf, path: /tmp/inputs/clf/data}
+    outputs:
+      parameters:
+      - name: pass-uri-Output
+        valueFrom: {path: /tmp/outputs/Output/data}
+      artifacts:
+      - {name: pass-uri-Output, path: /tmp/outputs/Output/data}
     metadata:
       annotations:
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/component_ref: '{}'
       labels:
-        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
         pipelines.kubeflow.org/pipeline-sdk-type: kfp
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/enable_caching: "true"
@@ -459,55 +586,6 @@ spec:
       mirrorVolumeMounts: true
     volumes:
     - {name: kfp-launcher}
-  - name: test-2
-    inputs:
-      parameters:
-      - {name: pipeline-name}
-      - {name: pipeline-root}
-    dag:
-      tasks:
-      - name: hyperparameter-tuning
-        template: hyperparameter-tuning
-        dependencies: [load-data]
-        arguments:
-          parameters:
-          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
-          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
-          artifacts:
-          - {name: load-data-output_file, from: '{{tasks.load-data.outputs.artifacts.load-data-output_file}}'}
-      - name: load-data
-        template: load-data
-        arguments:
-          parameters:
-          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
-          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
-      - name: model-selection
-        template: model-selection
-        dependencies: [load-data]
-        arguments:
-          parameters:
-          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
-          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
-          artifacts:
-          - {name: load-data-output_file, from: '{{tasks.load-data.outputs.artifacts.load-data-output_file}}'}
-      - name: test
-        template: test
-        dependencies: [train]
-        arguments:
-          parameters:
-          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
-          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
-          artifacts:
-          - {name: train-clf, from: '{{tasks.train.outputs.artifacts.train-clf}}'}
-      - name: train
-        template: train
-        dependencies: [load-data]
-        arguments:
-          parameters:
-          - {name: pipeline-name, value: '{{inputs.parameters.pipeline-name}}'}
-          - {name: pipeline-root, value: '{{inputs.parameters.pipeline-root}}'}
-          artifacts:
-          - {name: load-data-output_file, from: '{{tasks.load-data.outputs.artifacts.load-data-output_file}}'}
   - name: train
     container:
       args:
@@ -519,7 +597,7 @@ spec:
             python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
         fi
 
-        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pandas' 'numpy' 'pyarrow' 'sklearn' 'scikit-learn' 'kfp==1.8.14' && "$0" "$@"
+        PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'pandas' 'numpy' 'pyarrow' 'sklearn' 'scikit-learn' 'kfp==1.8.16' && "$0" "$@"
       - sh
       - -ec
       - |
@@ -628,7 +706,7 @@ spec:
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/component_ref: '{}'
       labels:
-        pipelines.kubeflow.org/kfp_sdk_version: 1.8.14
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.16
         pipelines.kubeflow.org/pipeline-sdk-type: kfp
         pipelines.kubeflow.org/v2_component: "true"
         pipelines.kubeflow.org/enable_caching: "true"
@@ -642,5 +720,5 @@ spec:
   arguments:
     parameters:
     - {name: pipeline-root, value: ''}
-    - {name: pipeline-name, value: pipeline/test}
+    - {name: pipeline-name, value: pipeline/kubeflow-seldon}
   serviceAccountName: pipeline-runner
